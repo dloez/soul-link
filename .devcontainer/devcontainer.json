@@ -1,0 +1,24 @@
+{
+  "name": "soul-link",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11.4",
+      "installTools": false
+    },
+    "ghcr.io/devcontainers-contrib/features/poetry:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "remoteUser": "vscode",
+  "mounts": ["source=kerberus-shellhistory,target=/commandhistory,type=volume"],
+  "runArgs": ["--name", "soul-link"],
+  "postStartCommand": "poetry install"
+}
