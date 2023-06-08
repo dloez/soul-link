@@ -9,6 +9,8 @@ packages = [{include = "soul_link"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 requests = "^2.31.0"
+gspread = "^5.9.0"
+pandas = "^2.0.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

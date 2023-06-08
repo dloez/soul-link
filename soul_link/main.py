@@ -1,41 +1,119 @@
-from soul_link.wrappers.steam import get_app_details, get_app_id_from_store_url
+import json
+import os
+import sys
+from argparse import ArgumentParser
+from pathlib import Path
+
+import gspread
+import pandas as pd
 
 
-def main():
-    if not URL.startswith("https://store.steampowered.com"):
-        print("Currently we only support Steam store URLs")
+def get_parser() -> ArgumentParser:
+    parser = ArgumentParser()
+    parser.add_argument("list", type=str, help="Game list name.")
+    return parser
 
-    app_id = str(get_app_id_from_store_url(URL))
-    app_details = get_app_details(app_id)
 
-    if app_id not in app_details or not app_details[app_id]["success"]:
-        print("Game does not exist")
-        return
+def get_service_account_cred_file_path() -> Path | None:
+    """
+    Retrive the path for the `service_account.json` file. It is searched by:
+        1. From the working directory in the file `service_account.json`.
+        2. From the environment variable defined in `ENV_VAR_SEVICE_ACCOUNT_FILE_PATH`. This variable
+        should have a relative or absolute path to the json file containing the service account
+        credentials information.
 
-    app_details = app_details[app_id]
-    name = app_details["data"]["name"]
-    is_free = app_details["data"]["is_free"]
-    short_description = app_details["data"]["short_description"]
+    Returns:
+        Path pointing to the service account credentials file.
+        None if the file is missing.
+    """
+    default_path = Path(DEFAULT_SERVICE_ACCOUNT_FILE_PATH)
+    if default_path.exists():
+        return default_path
 
-    categories = []
-    for category in app_details["data"]["categories"]:
-        categories.append(category["description"])
+    env_var_path = os.environ.get(ENV_VAR_SEVICE_ACCOUNT_FILE_PATH, "")
+    if env_var_path:
+        env_var_path = Path(env_var_path)
+        if env_var_path.exists():
+            return env_var_path
+    return None
 
-    genres = []
-    for genre in app_details["data"]["genres"]:
-        genres.append(genre["description"])
 
-    released = False
-    if (
-        "comin_soon" not in app_details["data"]["release_date"]
-        and not app_details["data"]["release_date"]["coming_soon"]
-    ):
-        released = True
+def load_user_data() -> dict:
+    """
+    Load user data from `USER_DATA` file.
 
-    print(name, is_free, short_description, categories, genres, released, sep="\n")
+    Returns:
+        dict with the json contained by `user.data` file.
+    """
+    user_data_path = Path(USER_DATA).expanduser()
+    user_data_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not user_data_path.exists():
+        with open(user_data_path, "w") as handler:
+            handler.write("{}")
+            return {}
+
+    with open(user_data_path, "r") as handler:
+        return json.load(handler)
+
+
+def write_user_data(user_data: dict):
+    """
+    Write user data to `USER_DATA` file.
+
+    Args:
+        dict that will be written to `user.data` file.
+    """
+    with open(Path(USER_DATA).expanduser(), "w") as handler:
+        json.dump(user_data, handler)
+
+
+def main() -> int:
+    """Main function."""
+    parser = get_parser()
+    args = parser.parse_args()
+
+    service_account_creds = get_service_account_cred_file_path()
+    if not service_account_creds:
+        print(
+            "Missing service account credentials. Please place the file `service_account.json` in the current",
+            f"directory or define the environment variable {ENV_VAR_SEVICE_ACCOUNT_FILE_PATH} pointing to the file.",
+        )
+        return 1
+    gc = gspread.service_account(filename=service_account_creds)
+
+    user_data = load_user_data()
+    if args.list not in user_data:
+        print(f"Creating new list '{args.list}'")
+        sheet_title = input(f"Google Sheet title [{args.list}]: ") or args.list
+
+        try:
+            gc.open(sheet_title)
+        except gspread.SpreadsheetNotFound:
+            print(f"There is not Google sheet with the title {sheet_title}!")
+            print(f"Creating sheet {sheet_title}...")
+            user_input = ""
+            while not user_input:
+                user_input = input("Enter your Google email: ")
+            sheet = gc.create(sheet_title)
+            res = sheet.share(email_address=user_input, perm_type="user", role="writer", notify=True)
+            permissionId = res.json()["id"]
+            sheet.transfer_ownership(permissionId)
+            print(f"Sheet created and tranferred to {user_input}!")
+            user_data[args.list] = {"title": sheet_title}
+            write_user_data(user_data)
+
+    sheet = gc.open(user_data[args.list]["title"])
+    worksheet = sheet.get_worksheet(0)
+    dataframe = pd.DataFrame(worksheet.get_all_records())
+    print(dataframe)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
-URL = "https://store.steampowered.com/app/2190400/Toads_of_the_Bayou/"
+
+DEFAULT_SERVICE_ACCOUNT_FILE_PATH = "./service_account.json"
+ENV_VAR_SEVICE_ACCOUNT_FILE_PATH = "SOUL_SERVICE_ACCOUNT"
+USER_DATA = "~/.config/soulink/user.data"

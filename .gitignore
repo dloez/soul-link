@@ -1,2 +1,4 @@
 __pycache__
 .venv
+service_account.json
+user.data

@@ -37,6 +37,7 @@ def get_app_id_from_store_url(url: str) -> int:
         int with the extracted application ID.
 
     Raises:
+        wrappers.steam.SteamInvalidStoreURL: Raised if the given `url` is not a valid Steam store URL.
         wrappers.steam.SteamInvalidAppID: Raised if the given `app_id` is not a valida number or equal or less than 0.
     """
     if not re.search(STORE_URL_PATTERN, url):
