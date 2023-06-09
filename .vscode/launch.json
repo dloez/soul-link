@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "editor",
+      "type": "python",
+      "request": "launch",
+      "program": "soul_link/main.py",
+      "args": ["test1"]
+    },
+    {
+      "name": "pid",
+      "type": "python",
+      "request": "attach",
+      "processId": 22478
+    }
+  ]
+}

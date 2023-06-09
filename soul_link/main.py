@@ -7,6 +7,14 @@ from pathlib import Path
 import gspread
 import pandas as pd
 
+from soul_link.tui import TUI
+
+DEFAULT_SERVICE_ACCOUNT_FILE_PATH = "./service_account.json"
+ENV_VAR_SEVICE_ACCOUNT_FILE_PATH = "SOUL_SERVICE_ACCOUNT"
+USER_DATA = "~/.config/soulink/user.data"
+
+DEFAULT_SHEET_HEADER = ["name", "is_free", "short_description", "categories", "genres", "released"]
+
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser()
@@ -68,6 +76,30 @@ def write_user_data(user_data: dict):
         json.dump(user_data, handler)
 
 
+def create_default_sheet(gc: gspread.client.Client, sheet_title: str) -> gspread.Spreadsheet:
+    """
+    Create sheet with the given title.
+
+    Args:
+        sheet_title (str): Sheet title.
+
+    Returns:
+        gspread.Spreadsheet: created Sheet.
+    """
+    user_input = ""
+    while not user_input:
+        user_input = input("Enter your Google email: ")
+    sheet = gc.create(sheet_title)
+    res = sheet.share(email_address=user_input, perm_type="user", role="writer", notify=True)
+    permissionId = res.json()["id"]
+    sheet.transfer_ownership(permissionId)
+
+    worksheet = sheet.get_worksheet(0)
+    for i, header in enumerate(DEFAULT_SHEET_HEADER, start=1):
+        worksheet.update_cell(1, i, header)
+    print(f"Sheet created and tranferred to {user_input}!")
+
+
 def main() -> int:
     """Main function."""
     parser = get_parser()
@@ -84,36 +116,27 @@ def main() -> int:
 
     user_data = load_user_data()
     if args.list not in user_data:
+        user_data[args.list] = {}
         print(f"Creating new list '{args.list}'")
-        sheet_title = input(f"Google Sheet title [{args.list}]: ") or args.list
+        user_data[args.list]["title"] = input(f"Google Sheet title [{args.list}]: ") or args.list
+        write_user_data(user_data)
 
-        try:
-            gc.open(sheet_title)
-        except gspread.SpreadsheetNotFound:
-            print(f"There is not Google sheet with the title {sheet_title}!")
-            print(f"Creating sheet {sheet_title}...")
-            user_input = ""
-            while not user_input:
-                user_input = input("Enter your Google email: ")
-            sheet = gc.create(sheet_title)
-            res = sheet.share(email_address=user_input, perm_type="user", role="writer", notify=True)
-            permissionId = res.json()["id"]
-            sheet.transfer_ownership(permissionId)
-            print(f"Sheet created and tranferred to {user_input}!")
-            user_data[args.list] = {"title": sheet_title}
-            write_user_data(user_data)
+    sheet_title = user_data[args.list]["title"]
+    try:
+        sheet = gc.open(sheet_title)
+    except gspread.SpreadsheetNotFound:
+        print(f"There is not Google sheet with the title {sheet_title}!")
+        print(f"Creating sheet {sheet_title}...")
+        sheet = create_default_sheet(gc, sheet_title)
 
     sheet = gc.open(user_data[args.list]["title"])
     worksheet = sheet.get_worksheet(0)
     dataframe = pd.DataFrame(worksheet.get_all_records())
-    print(dataframe)
+
+    tui = TUI(dataframe)
+    tui.init_tui()
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-DEFAULT_SERVICE_ACCOUNT_FILE_PATH = "./service_account.json"
-ENV_VAR_SEVICE_ACCOUNT_FILE_PATH = "SOUL_SERVICE_ACCOUNT"
-USER_DATA = "~/.config/soulink/user.data"

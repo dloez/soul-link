@@ -464,6 +464,17 @@ files = [
 ]
 
 [[package]]
+name = "readkeys"
+version = "1.0.2"
+description = "Python library to read from stdin a single char, keypress (with escape sequences) or line."
+optional = false
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "readkeys-1.0.2-py3-none-any.whl", hash = "sha256:2b113c4f0726df495ace2b031f174c17b77c576f014c347bb6d92d87d4f6a298"},
+    {file = "readkeys-1.0.2.tar.gz", hash = "sha256:0ea2a6a7e2993a454d53c90fbdcd7d526d12ade30c23049c1dc7398d1d7b32de"},
+]
+
+[[package]]
 name = "requests"
 version = "2.31.0"
 description = "Python HTTP for Humans."
@@ -584,4 +595,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "abb31b0521f3d72abfe8bc6198869e0f1b7474c80297d277bb65533f8d72f6ee"
+content-hash = "5a522faa4cb9019d76b0cdcbc880c6eb0a0a425c3bdfda1b3830ba04cf9dd0ef"
