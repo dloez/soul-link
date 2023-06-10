@@ -1,7 +1,4 @@
-import fcntl
 import os
-import struct
-import termios
 from threading import Thread
 
 import pandas as pd
@@ -32,6 +29,10 @@ class TUI:
         init()
 
     def _display(self):
+        """
+        Print the main TUI interface containing the table. This function should be called the first time
+        that interface should be displayed.
+        """
         self._clear_console()
         self._update_terminal_size()
         self._update_view_data()
@@ -49,6 +50,10 @@ class TUI:
         self._move_cursor(self._CURSOR_INITIAL_POS)
 
     def _event_loop(self):
+        """
+        Reads events like key presses.
+        """
+
         def on_key_press(key: str):
             match key:
                 case keyboard.KEY_ARROW_UP:
@@ -69,9 +74,9 @@ class TUI:
         keyboard.read_keys(on_key_press=on_key_press)
 
     def init_tui(self):
-        # fd = sys.stdout.fileno()
-        # set_winsize(fd, 10, 100)
-
+        """
+        Initialize the text user interface.
+        """
         threads = []
         threads.append(Thread(target=self._event_loop))
 
@@ -83,10 +88,16 @@ class TUI:
             t.join()
 
     def _update_terminal_size(self):
+        """
+        Get ther terminal size to avoid having more lines that can be displayed.
+        """
         size = os.get_terminal_size()
         self._terminal_size = (size.lines - 1, size.columns)
 
     def _update_view_data(self):
+        """
+        Based on terminal size, create a smaller `pd.DataFrame` used to iterate over and display.
+        """
         self._view_data = self._dataframe.iloc[self._top_index : self._terminal_size[0] - 1]
         self._bottom_index = len(self._view_data) - 1
 
@@ -97,11 +108,25 @@ class TUI:
         os.system("cls" if os.name == "nt" else "clear")
 
     def _calculate_columns_widths(self):
+        """
+        Based on column name length, calculate a width that properly fits the columns.
+        TODO: improve the logic behind calculating the column width.
+        """
         self._column_widths = {}
         for column in self._dataframe.columns:
             self._column_widths[column] = len(column) + 4
 
     def _print_row(self, data: pd.Series, with_background: bool = False, move_cursor: bool = True):
+        """
+        Print a table row data from a `pd.DataFrame.iterrows()` `pd.Series`.
+        TODO: improve the logic behind calculating the column width.
+
+        Args:
+            data (`pd.Series`): Data that should be printed.
+            with_background (bool): Add background color to the row. Useful for selecting rows.
+            move_cursor (bool): If `true`, move the cursor to the following line. If `False`, move the
+                cursor to the beggining of the printed line.
+        """
         row = "|"
         for column in data.index:
             row += f"{data[column]: ^{self._column_widths[column]}}|"
@@ -161,12 +186,12 @@ class TUI:
         self._print_row(self._view_data.iloc[self._cursor_y], with_background=True, move_cursor=False)
 
     def _exit_mode(self):
+        """
+        Call this function to properly exit current mode.
+        If the current mode is `TUI._MODE_ROW`, re-print the current cursor row without background while keeping
+        the cursor on the same position.
+        """
         match self._mode:
             case self._MODE_ROW:
                 self._mode = self._MODE_TABLE
                 self._print_row(self._view_data.iloc[self._cursor_y], move_cursor=False)
-
-
-def set_winsize(fd, row, col, xpix=0, ypix=0):
-    winsize = struct.pack("HHHH", row, col, xpix, ypix)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
