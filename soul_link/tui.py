@@ -110,7 +110,6 @@ class TUI:
     def _calculate_columns_widths(self):
         """
         Based on column name length, calculate a width that properly fits the columns.
-        TODO: improve the logic behind calculating the column width.
         """
         self._column_widths = {}
         for column in self._dataframe.columns:
@@ -119,7 +118,6 @@ class TUI:
     def _print_row(self, data: pd.Series, with_background: bool = False, move_cursor: bool = True):
         """
         Print a table row data from a `pd.DataFrame.iterrows()` `pd.Series`.
-        TODO: improve the logic behind calculating the column width.
 
         Args:
             data (`pd.Series`): Data that should be printed.
@@ -144,8 +142,6 @@ class TUI:
     def _move_cursor(self, position: (int)):
         """
         Move cursor to given. Currently the cursor is just moved in the `y` axis.
-        TODO: support `x` movement.
-        TODO: check for out of bounds.
 
         Args:
             position ((int)): tuple with `y` and `x` positions where the cursor should be moved.
@@ -165,8 +161,6 @@ class TUI:
     def _add_cursor(self, position: str):
         """
         Add position to current cursor position. Currently the cursor is just moved in the `y` axis.
-        TODO: support `x` movement.
-        TODO: check for out of bounds.
 
         Args:
             position ((int)): tuple with `y` and `x` positions that should be added to the current cursor position.
