@@ -168,7 +168,10 @@ class TUI:
             if select_col and i == self._cursor_column:
                 color = Back.LIGHTBLUE_EX
                 reset = Style.RESET_ALL
-            row += f"{color}{data[column]: ^{self._column_widths[column]}}{reset}|"
+            display_data = data[column]
+            if len(data[column]) > self._column_widths[column]:
+                display_data = f"{data[column][:self._column_widths[column] - 3]}..."
+            row += f"{color}{display_data: ^{self._column_widths[column]}}{reset}|"
 
         if select_row or select_col:
             print(row, flush=True)
