@@ -12,13 +12,15 @@ class TUI:
     _MODE_ROW = "row"
     _MODE_COLUMN = "column"
 
+    _EXIT_KEYS = (keyboard.COM_CTRL_C, keyboard.COM_CTRL_D)
+
     _CURSOR_UP = -1
     _CURSOR_DOWN = 1
     _CURSOR_LEFT = -1
     _CURSOR_RIGHT = 1
     _CURSOR_INITIAL_POS = (1, 0)
 
-    # Used for scape secuences
+    # Used for scape sequences
     _CHAR_DIRECTION_UP = "A"
     _CHAR_DIRECTION_DOWN = "B"
     _CHAR_SCAPE = "\x1b"
@@ -104,8 +106,12 @@ class TUI:
                     move_column(self._CURSOR_RIGHT)
                 case keyboard.KEY_ESC:
                     self._exit_mode()
+                case keyboard.KEY_X:
+                    if self._mode == self._MODE_TABLE:
+                        return False
+            return True
 
-        keyboard.read_keys(on_key_press=on_key_press)
+        keyboard.read_keys(on_key_press=on_key_press, exit_keys=self._EXIT_KEYS)
 
     def init_tui(self):
         """
