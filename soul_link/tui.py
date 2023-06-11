@@ -2,7 +2,7 @@ import os
 from threading import Thread
 
 import pandas as pd
-from colorama import Back, Fore, Style, init
+from colorama import Back, Style, init
 
 from soul_link import keyboard
 
@@ -10,17 +10,25 @@ from soul_link import keyboard
 class TUI:
     _MODE_TABLE = "table"
     _MODE_ROW = "row"
+    _MODE_COLUMN = "column"
 
-    _CURSOR_UP = (-1, 0)
-    _CURSOR_DOWN = (1, 0)
+    _CURSOR_UP = -1
+    _CURSOR_DOWN = 1
+    _CURSOR_LEFT = -1
+    _CURSOR_RIGHT = 1
     _CURSOR_INITIAL_POS = (1, 0)
 
+    # Used for scape secuences
     _CHAR_DIRECTION_UP = "A"
     _CHAR_DIRECTION_DOWN = "B"
+    _CHAR_SCAPE = "\x1b"
+    _CHAR_CTRL = "["
+    _CHAR_HOME = "H"
 
     def __init__(self, dataframe: pd.DataFrame):
         self._dataframe: pd.DataFrame = dataframe
-        self._cursor_y: int = 0
+        self._cursor_line: int = 0
+        self._cursor_column: int = 0
         self._bottom_index: int = 0
         self._top_index: int = 0
         self._terminal_size = ()
@@ -42,32 +50,58 @@ class TUI:
         for column in self._dataframe.columns:
             print(f"{column: ^{self._column_widths[column]}}|", end="")
         print()
-        self._cursor_y += 1
+        self._cursor_line += 1
 
-        for _, row in self._view_data.iterrows():
-            self._print_row(row)
-        self._move_cursor(self._CURSOR_INITIAL_POS)
-        self._move_cursor(self._CURSOR_INITIAL_POS)
+        for index, row in self._view_data.iterrows():
+            select_row = False
+            if self._mode == self._MODE_ROW and index == self._cursor_line:
+                select_row = True
+            select_col = False
+            if self._mode == self._MODE_COLUMN:
+                select_col = True
+            self._print_row(row, select_row=select_row, select_col=select_col, reset_cursor_line=False)
+        self._move_cursor_position(self._CURSOR_INITIAL_POS)
 
-    def _event_loop(self):
+    def _read_keys(self):
         """
-        Reads events like key presses.
+        Read keyboard key presses.
         """
+
+        def move_line(direction: int):
+            if self._mode == self._MODE_TABLE:
+                self._print_row(self._view_data.iloc[self._cursor_line - 1], select_row=True)
+            else:
+                self._add_cursor_line(
+                    direction,
+                    pre_hook=self._print_row,
+                    pre_hook_args=(self._view_data.iloc[self._cursor_line - 1], False, False),
+                )
+                self._print_row(self._view_data.iloc[self._cursor_line - 1], True, False)
+            self._mode = self._MODE_ROW
+
+        def move_column(direction):
+            if self._mode == self._MODE_ROW:
+                self._print_row(self._view_data.iloc[self._cursor_line - 1], select_col=True)
+            if self._mode == self._MODE_COLUMN:
+                if (self._cursor_column + direction) < 0:
+                    self._cursor_column = len(self._view_data.columns) - 1
+                elif (self._cursor_column + direction) > len(self._view_data.columns) - 1:
+                    self._cursor_column = 0
+                else:
+                    self._cursor_column += direction
+            self._print_row(self._view_data.iloc[self._cursor_line - 1], select_col=True)
+            self._mode = self._MODE_COLUMN
 
         def on_key_press(key: str):
             match key:
                 case keyboard.KEY_ARROW_UP:
-                    if self._mode == self._MODE_TABLE:
-                        self._mode = self._MODE_ROW
-                        self._print_row(self._view_data.iloc[self._cursor_y], with_background=True, move_cursor=False)
-                    else:
-                        self._add_cursor(self._CURSOR_UP)
+                    move_line(self._CURSOR_UP)
                 case keyboard.KEY_ARROW_DOWN:
-                    if self._mode == self._MODE_TABLE:
-                        self._mode = self._MODE_ROW
-                        self._print_row(self._view_data.iloc[self._cursor_y], with_background=True, move_cursor=False)
-                    else:
-                        self._add_cursor(self._CURSOR_DOWN)
+                    move_line(self._CURSOR_DOWN)
+                case keyboard.KEY_ARROW_LEFT:
+                    move_column(self._CURSOR_LEFT)
+                case keyboard.KEY_ARROW_RIGHT:
+                    move_column(self._CURSOR_RIGHT)
                 case keyboard.KEY_ESC:
                     self._exit_mode()
 
@@ -78,7 +112,7 @@ class TUI:
         Initialize the text user interface.
         """
         threads = []
-        threads.append(Thread(target=self._event_loop))
+        threads.append(Thread(target=self._read_keys))
 
         self._display()
         for t in threads:
@@ -115,69 +149,74 @@ class TUI:
         for column in self._dataframe.columns:
             self._column_widths[column] = len(column) + 4
 
-    def _print_row(self, data: pd.Series, with_background: bool = False, move_cursor: bool = True):
+    def _print_row(
+        self, data: pd.Series, select_row: bool = False, select_col: bool = False, reset_cursor_line: bool = True
+    ):
         """
         Print a table row data from a `pd.DataFrame.iterrows()` `pd.Series`.
 
         Args:
             data (`pd.Series`): Data that should be printed.
-            with_background (bool): Add background color to the row. Useful for selecting rows.
-            move_cursor (bool): If `true`, move the cursor to the following line. If `False`, move the
+            select_row (bool): Add background color to the row. Useful for selecting rows.
+            move_cursor_line (bool): If `true`, move the cursor to the following line. If `False`, move the
                 cursor to the beggining of the printed line.
         """
         row = "|"
-        for column in data.index:
-            row += f"{data[column]: ^{self._column_widths[column]}}|"
+        for i, column in enumerate(data.index):
+            color = ""
+            reset = ""
+            if select_col and i == self._cursor_column:
+                color = Back.LIGHTBLUE_EX
+                reset = Style.RESET_ALL
+            row += f"{color}{data[column]: ^{self._column_widths[column]}}{reset}|"
 
-        if with_background:
-            print(f"{Back.BLUE}{Fore.BLACK}{row}{Style.RESET_ALL}", flush=True)
-        else:
+        if select_row or select_col:
             print(row, flush=True)
-
-        if move_cursor:
-            self._cursor_y += 1
         else:
-            print("\x1b[1A", end="", flush=True)
+            print(f"{Style.DIM}{row}{Style.RESET_ALL}", flush=True)
 
-    def _move_cursor(self, position: (int)):
+        if reset_cursor_line:
+            print(f"{self._CHAR_SCAPE}{self._CHAR_CTRL}1A", end="", flush=True)
+
+    def _move_cursor_position(self, position: (int)):
         """
-        Move cursor to given. Currently the cursor is just moved in the `y` axis.
+        Move cursor to given.
 
         Args:
             position ((int)): tuple with `y` and `x` positions where the cursor should be moved.
         """
-        y, _ = position
+        y, x = position
 
-        difference_y = self._cursor_y - y
-        direction = self._CHAR_DIRECTION_UP
-        if difference_y < 0:
-            direction = self._CHAR_DIRECTION_DOWN
-        elif difference_y == 0:
+        if y < 0 or x < 0:
             return
+        print(f"{self._CHAR_SCAPE}{self._CHAR_CTRL}{y};{x}{self._CHAR_HOME}")
 
-        print(f"\x1b[{difference_y}{direction}", end="", flush=True)
-        self._cursor_y = y - 1
-
-    def _add_cursor(self, position: str):
+    def _add_cursor_line(
+        self,
+        add_line: int,
+        pre_hook: callable,
+        pre_hook_args: tuple() = (),
+    ):
         """
-        Add position to current cursor position. Currently the cursor is just moved in the `y` axis.
+        Add position to current cursor line position.
 
         Args:
-            position ((int)): tuple with `y` and `x` positions that should be added to the current cursor position.
+            add_line (int): lines that should be add to the current line position.
+            pre_hook: (callable): function that should be called if the position could be added.
+            pre_hook_args (tuple): tuple with `pre_hook` function arguments.
         """
-        y, _ = position
-        if self._cursor_y + y > len(self._view_data) - 1 or self._cursor_y + y < 0:
+        if self._cursor_line + add_line > len(self._view_data) or self._cursor_line + add_line <= 0:
             return
 
         direction = self._CHAR_DIRECTION_DOWN
-        if y < 0:
+        if add_line < 0:
             direction = self._CHAR_DIRECTION_UP
 
         # re-print current line to remove background color
-        self._print_row(self._view_data.iloc[self._cursor_y], with_background=False, move_cursor=False)
-        print(f"\x1b[1{direction}", end="", flush=True)
-        self._cursor_y += y
-        self._print_row(self._view_data.iloc[self._cursor_y], with_background=True, move_cursor=False)
+        if pre_hook:
+            pre_hook(*pre_hook_args)
+        print(f"{self._CHAR_SCAPE}{self._CHAR_CTRL}1{direction}", end="", flush=True)
+        self._cursor_line += add_line
 
     def _exit_mode(self):
         """
@@ -188,4 +227,7 @@ class TUI:
         match self._mode:
             case self._MODE_ROW:
                 self._mode = self._MODE_TABLE
-                self._print_row(self._view_data.iloc[self._cursor_y], move_cursor=False)
+                self._print_row(self._view_data.iloc[self._cursor_line - 1])
+            case self._MODE_COLUMN:
+                self._mode = self._MODE_ROW
+                self._print_row(self._view_data.iloc[self._cursor_line - 1], select_row=True)

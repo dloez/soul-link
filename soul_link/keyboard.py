@@ -2,6 +2,8 @@ import readkeys
 
 KEY_ARROW_UP = "1b5b41"
 KEY_ARROW_DOWN = "1b5b42"
+KEY_ARROW_RIGHT = "1b5b43"
+KEY_ARROW_LEFT = "1b5b44"
 KEY_ESC = "1b"
 KEY_X = "78"
 KEY_BACKSPACE = "7f"
