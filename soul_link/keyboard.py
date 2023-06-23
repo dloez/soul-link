@@ -21,28 +21,33 @@ def _default_on_key_press(key: str) -> bool:
     return True
 
 
-def read_keys(on_key_press: callable = _default_on_key_press, exit_keys: tuple[str] = (COM_CTRL_C,)):
+def read_keys(
+    on_key_press: callable = _default_on_key_press, exit_keys: tuple[str] = (COM_CTRL_C,), on_exit: callable = None
+):
     """
     Read full stdin ANSI scape sequences. This even reads the full sequence of arrow keys.
 
     Args:
         on_key_press (callable): Function that should be called when a new key press is detected. If this argument is
-        null, the function `soul_link.keyboard._default_on_key_press` will be called.
-        This is the `on_key_press` docstring:
-            '''
-            Function called when a new key press is detected:
+            null, the function `soul_link.keyboard._default_on_key_press` will be called.
+            This is the `on_key_press` docstring:
+                '''
+                Function called when a new key press is detected:
 
-            Args:
-                key (str): hexadecimal `str` representation of the ANSI scape sequence.
+                Args:
+                    key (str): hexadecimal `str` representation of the ANSI scape sequence.
 
-            Returns:
-                bool: if `False`, the function `soul_link.keyboard.read_keys` will terminate.
-            '''
+                Returns:
+                    bool: if `False`, the function `soul_link.keyboard.read_keys` will terminate.
+                '''
         exit_keys (tuple[str]): tuple of ANSI sequences representations of keys that will make this function terminate
-        if pressed. Defaults to `(COM_CTRL_C,)`.
+            if pressed. Defaults to `(COM_CTRL_C,)`.
+        on_exit (callable): Function that should be called when a key that should trigger the loop to stop is pressed.
     """
     key = ""
     while key not in exit_keys:
         key = readkeys.getkey().encode("utf-8").hex()
         if not on_key_press(key=key):
             break
+    if on_exit:
+        on_exit()

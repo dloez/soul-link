@@ -118,7 +118,7 @@ class TUI:
                         delete_row()
             return True
 
-        keyboard.read_keys(on_key_press=on_key_press, exit_keys=self._EXIT_KEYS)
+        keyboard.read_keys(on_key_press=on_key_press, exit_keys=self._EXIT_KEYS, on_exit=self._clear_console)
 
     def init_tui(self):
         """
