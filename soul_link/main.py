@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import gspread
-import pandas as pd
 
+from soul_link.data import SheetWrapper
 from soul_link.tui import TUI
 
 DEFAULT_SERVICE_ACCOUNT_FILE_PATH = "./service_account.json"
@@ -130,10 +130,9 @@ def main() -> int:
         sheet = create_default_sheet(gc, sheet_title)
 
     sheet = gc.open(user_data[args.list]["title"])
-    worksheet = sheet.get_worksheet(0)
-    dataframe = pd.DataFrame(worksheet.get_all_records())
+    sheet_wrapper = SheetWrapper(sheet)
 
-    tui = TUI(dataframe)
+    tui = TUI(sheet_wrapper.get_array(), on_data_update=sheet_wrapper.update_sheet)
     tui.init_tui()
     return 0
 

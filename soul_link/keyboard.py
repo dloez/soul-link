@@ -27,8 +27,8 @@ def read_keys(on_key_press: callable = _default_on_key_press, exit_keys: tuple[s
 
     Args:
         on_key_press (callable): Function that should be called when a new key press is detected. If this argument is
-            null, the function `soul_link.keyboard._default_on_key_press` will be called.
-            This is the `on_key_press` docstring:
+        null, the function `soul_link.keyboard._default_on_key_press` will be called.
+        This is the `on_key_press` docstring:
             '''
             Function called when a new key press is detected:
 
@@ -39,7 +39,7 @@ def read_keys(on_key_press: callable = _default_on_key_press, exit_keys: tuple[s
                 bool: if `False`, the function `soul_link.keyboard.read_keys` will terminate.
             '''
         exit_keys (tuple[str]): tuple of ANSI sequences representations of keys that will make this function terminate
-            if pressed. Defaults to `(COM_CTRL_C,)`.
+        if pressed. Defaults to `(COM_CTRL_C,)`.
     """
     key = ""
     while key not in exit_keys:

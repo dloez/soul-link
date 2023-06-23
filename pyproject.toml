@@ -13,6 +13,7 @@ gspread = "^5.9.0"
 pandas = "^2.0.2"
 readkeys = "^1.0.2"
 colorama = "^0.4.6"
+numpy = "^1.24.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
